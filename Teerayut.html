@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แดชบอร์ดข้อมูลผู้ใช้งาน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        #dataTable th, #dataTable td {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container py-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">แดชบอร์ดข้อมูลผู้ใช้งานของธีระยุทธ</h1>
+
+        <!-- CSV URL Section -->
+        <div class="card p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">นำเข้าข้อมูลจากลิงก์ CSV</h2>
+            <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+                <input type="text" id="csvUrlInput" placeholder="วาง URL ของไฟล์ CSV ที่เผยแพร่แล้ว..." class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                <button id="loadCsvBtn" class="w-full md:w-auto px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 font-semibold">
+                    ดึงข้อมูล
+                </button>
+            </div>
+            <p id="statusMessage" class="mt-2 text-sm text-gray-600 hidden"></p>
+        </div>
+
+        <!-- Info Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="card bg-purple-600 text-white transform transition-transform duration-300 hover:scale-105">
+                <div class="text-3xl font-bold" id="totalUsersCard">N/A</div>
+                <div class="text-lg mt-2">จำนวนผู้ใช้งานทั้งหมด</div>
+            </div>
+            <div class="card bg-green-600 text-white transform transition-transform duration-300 hover:scale-105">
+                <div class="text-3xl font-bold" id="avgSatisfactionCard">N/A</div>
+                <div class="text-lg mt-2">คะแนนความพึงพอใจเฉลี่ย</div>
+            </div>
+            <div class="card bg-blue-600 text-white transform transition-transform duration-300 hover:scale-105">
+                <div class="text-3xl font-bold" id="avgSpendingCard">N/A</div>
+                <div class="text-lg mt-2">ค่าใช้จ่ายเฉลี่ย (บาท)</div>
+            </div>
+            <div class="card bg-yellow-500 text-white transform transition-transform duration-300 hover:scale-105">
+                <div class="text-3xl font-bold" id="avgRecommendationCard">N/A</div>
+                <div class="text-lg mt-2">คะแนนการแนะนำเฉลี่ย</div>
+            </div>
+        </div>
+        
+        <!-- Chart Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="card h-80">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">จำนวนผู้ใช้งานในแต่ละแพลตฟอร์ม</h2>
+                <canvas id="platformChart"></canvas>
+            </div>
+            <div class="card h-80">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">คะแนนความพึงพอใจตามเพศ</h2>
+                <canvas id="genderSatisfactionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="card p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">ข้อมูลผู้ใช้งานทั้งหมด</h2>
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-4 md:space-y-0 md:space-x-4">
+                <div class="w-full md:w-1/2">
+                    <input type="text" id="searchInput" placeholder="ค้นหาข้อมูล..." class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                </div>
+                <div class="flex space-x-2">
+                    <button id="resetButton" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200">
+                        รีเซ็ต
+                    </button>
+                    <button id="exportButton" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200">
+                        ส่งออก CSV
+                    </button>
+                </div>
+            </div>
+            <div class="table-container bg-white rounded-lg shadow-sm">
+                <table id="dataTable" class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">อายุ</th>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">เพศ</th>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">ระดับรายได้</th>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">แพลตฟอร์มที่ชอบ</th>
+                            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">คะแนนความพึงพอใจ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Table rows will be populated by JavaScript -->
+                        <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">กรุณาใส่ URL ของไฟล์ CSV และกด "ดึงข้อมูล"</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let data = [];
+            let filteredData = [];
+
+            const totalUsersCard = document.getElementById('totalUsersCard');
+            const avgSatisfactionCard = document.getElementById('avgSatisfactionCard');
+            const avgSpendingCard = document.getElementById('avgSpendingCard');
+            const avgRecommendationCard = document.getElementById('avgRecommendationCard');
+            const tableBody = document.getElementById('tableBody');
+            const searchInput = document.getElementById('searchInput');
+            const resetButton = document.getElementById('resetButton');
+            const exportButton = document.getElementById('exportButton');
+            const csvUrlInput = document.getElementById('csvUrlInput');
+            const loadCsvBtn = document.getElementById('loadCsvBtn');
+            const statusMessage = document.getElementById('statusMessage');
+
+            // Initialize charts
+            let platformChart;
+            let genderSatisfactionChart;
+
+            function showStatus(message, isError = false) {
+                statusMessage.textContent = message;
+                statusMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
+                if (isError) {
+                    statusMessage.classList.add('text-red-600');
+                } else {
+                    statusMessage.classList.add('text-green-600');
+                }
+                statusMessage.classList.remove('hidden');
+            }
+            
+            async function fetchAndParseCSV(url) {
+                showStatus('กำลังดึงข้อมูล... โปรดรอสักครู่');
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`ข้อผิดพลาด HTTP! สถานะ: ${response.status}`);
+                    }
+                    const csvText = await response.text();
+                    const parsedData = parseCSV(csvText);
+
+                    if (parsedData.length === 0) {
+                        throw new Error('ไม่พบข้อมูลในไฟล์ CSV หรือรูปแบบไม่ถูกต้อง ตรวจสอบให้แน่ใจว่าแถวแรกเป็นส่วนหัว');
+                    }
+                    data = parsedData;
+                    filteredData = [...data];
+                    showStatus('ดึงข้อมูลเรียบร้อยแล้ว!', false);
+                    updateDashboard(filteredData);
+                } catch (error) {
+                    console.error('Error fetching CSV:', error);
+                    showStatus(`เกิดข้อผิดพลาดในการดึงข้อมูล: ${error.message}`, true);
+                    updateDashboard([]); // Clear dashboard on error
+                }
+            }
+
+            function parseCSV(text) {
+                const rows = text.trim().split('\n');
+                if (rows.length <= 1) {
+                    return [];
+                }
+                const headers = rows[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
+                const result = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const values = rows[i].split(',').map(value => value.trim().replace(/^"|"$/g, ''));
+                    if (values.length !== headers.length) {
+                        continue;
+                    }
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    result.push(row);
+                }
+                return result;
+            }
+
+            function updateMetrics(currentData) {
+                if (currentData.length === 0) {
+                    totalUsersCard.textContent = 'N/A';
+                    avgSatisfactionCard.textContent = 'N/A';
+                    avgSpendingCard.textContent = 'N/A';
+                    avgRecommendationCard.textContent = 'N/A';
+                    return;
+                }
+                const totalUsers = currentData.length;
+                const avgSatisfaction = (currentData.reduce((sum, row) => sum + parseFloat(row.satisfaction_score), 0) / totalUsers).toFixed(1);
+                const avgSpending = (currentData.reduce((sum, row) => sum + parseFloat(row.avg_spending), 0) / totalUsers).toFixed(0);
+                const avgRecommendation = (currentData.reduce((sum, row) => sum + parseFloat(row.recommendation_likelihood), 0) / totalUsers).toFixed(1);
+
+                totalUsersCard.textContent = totalUsers;
+                avgSatisfactionCard.textContent = avgSatisfaction;
+                avgSpendingCard.textContent = avgSpending;
+                avgRecommendationCard.textContent = avgRecommendation;
+            }
+
+            function updateCharts(currentData) {
+                // Platform Chart
+                if (platformChart) {
+                    platformChart.destroy();
+                }
+                const platformCounts = currentData.reduce((acc, row) => {
+                    acc[row.preferred_platform] = (acc[row.preferred_platform] || 0) + 1;
+                    return acc;
+                }, {});
+                const platformLabels = Object.keys(platformCounts);
+                const platformData = Object.values(platformCounts);
+
+                const ctx1 = document.getElementById('platformChart').getContext('2d');
+                platformChart = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: platformLabels,
+                        datasets: [{
+                            label: 'จำนวนผู้ใช้งาน',
+                            data: platformData,
+                            backgroundColor: ['#4c51bf', '#6b46c1', '#805ad5', '#9f7aea', '#d6bcfa'],
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'จำนวนผู้ใช้งาน' }
+                            },
+                            x: {
+                                title: { display: true, text: 'แพลตฟอร์ม' }
+                            }
+                        }
+                    }
+                });
+
+                // Gender Satisfaction Chart
+                if (genderSatisfactionChart) {
+                    genderSatisfactionChart.destroy();
+                }
+                const genderData = currentData.reduce((acc, row) => {
+                    const gender = row.gender;
+                    if (!acc[gender]) {
+                        acc[gender] = { sum: 0, count: 0 };
+                    }
+                    acc[gender].sum += parseFloat(row.satisfaction_score);
+                    acc[gender].count++;
+                    return acc;
+                }, {});
+
+                const genderLabels = Object.keys(genderData);
+                const genderSatisfactionScores = genderLabels.map(gender => (genderData[gender].sum / genderData[gender].count).toFixed(1));
+
+                const ctx2 = document.getElementById('genderSatisfactionChart').getContext('2d');
+                genderSatisfactionChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: genderLabels,
+                        datasets: [{
+                            label: 'คะแนนความพึงพอใจเฉลี่ย',
+                            data: genderSatisfactionScores,
+                            backgroundColor: ['#4299e1', '#f687b3'],
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 5,
+                                title: { display: true, text: 'คะแนน' }
+                            },
+                            x: {
+                                title: { display: true, text: 'เพศ' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function renderTable(currentData) {
+                tableBody.innerHTML = '';
+                if (currentData.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="6" class="px-6 py-4 text-center text-gray-500">ไม่พบข้อมูล</td>`;
+                    tableBody.appendChild(row);
+                    return;
+                }
+                currentData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.classList.add('hover:bg-gray-50', 'transition-colors', 'duration-200');
+                    tr.innerHTML = `
+                        <td class="px-6 py-4">${row.customer_id}</td>
+                        <td class="px-6 py-4">${row.age}</td>
+                        <td class="px-6 py-4">${row.gender}</td>
+                        <td class="px-6 py-4">${row.income_level}</td>
+                        <td class="px-6 py-4">${row.preferred_platform}</td>
+                        <td class="px-6 py-4">${row.satisfaction_score}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+            
+            function updateDashboard(currentData) {
+                updateMetrics(currentData);
+                updateCharts(currentData);
+                renderTable(currentData);
+            }
+
+            function filterTable(query) {
+                if (!query) {
+                    filteredData = [...data];
+                } else {
+                    const lowerCaseQuery = query.toLowerCase();
+                    filteredData = data.filter(row => 
+                        Object.values(row).some(value => 
+                            String(value).toLowerCase().includes(lowerCaseQuery)
+                        )
+                    );
+                }
+                updateDashboard(filteredData);
+            }
+
+            // Event Listeners
+            loadCsvBtn.addEventListener('click', () => {
+                const url = csvUrlInput.value;
+                if (url) {
+                    fetchAndParseCSV(url);
+                } else {
+                    showStatus('กรุณาใส่ URL ของไฟล์ CSV', true);
+                }
+            });
+            
+            searchInput.addEventListener('input', (e) => {
+                filterTable(e.target.value);
+            });
+            
+            resetButton.addEventListener('click', () => {
+                searchInput.value = '';
+                filterTable('');
+            });
+
+            exportButton.addEventListener('click', () => {
+                if (filteredData.length === 0) return;
+                const headers = Object.keys(filteredData[0]).join(',');
+                const csvRows = filteredData.map(row => Object.values(row).join(','));
+                const csvContent = [headers, ...csvRows].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'filtered_data.csv');
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
